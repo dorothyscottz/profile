@@ -30,7 +30,8 @@ import {
 } from "lucide-react";
 import {
   accents,
-  defaultProfile,
+  publishedProfile,
+  isEditorRequest,
   normalizeProfile,
   readProfile,
   resumeText,
@@ -38,6 +39,13 @@ import {
   isValidEmail,
 } from "./profile";
 import "./styles.css";
+import "./studio.css";
+import "./motion.css";
+import { useMotion } from "./useMotion";
+
+// The published build has no editor entry point or local draft loading.
+const editorMode =
+  import.meta.env.DEV && isEditorRequest(window.location.search);
 
 const skills = [
   "Angular",
@@ -448,6 +456,43 @@ function Customize({ profile, onChange, onClose, notify }) {
         )}
         {tab === "Appearance" && (
           <>
+            <h3>A different point of view.</h3>
+            <p className="muted">
+              Choose a complete layout, not just a palette.
+            </p>
+            <div
+              className="layout-options"
+              role="group"
+              aria-label="Portfolio layout"
+            >
+              {[
+                ["editorial", "Editorial", "Split hero · three-column stories"],
+                ["studio", "Studio", "Centered hero · featured work"],
+              ].map(([value, label, description]) => (
+                <button
+                  key={value}
+                  className={profile.layout === value ? "active" : ""}
+                  aria-pressed={profile.layout === value}
+                  onClick={() => update("layout", value)}
+                >
+                  <span
+                    className={`layout-thumbnail thumbnail-${value}`}
+                    aria-hidden="true"
+                  >
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className="layout-option-title">
+                    {label}
+                    {profile.layout === value && <Check size={14} />}
+                  </span>
+                  <small>{description}</small>
+                </button>
+              ))}
+            </div>
             <h3>A little color, a lot of character.</h3>
             <p className="muted">Choose an accent that feels like you.</p>
             <div className="color-options">
@@ -482,11 +527,31 @@ function Customize({ profile, onChange, onClose, notify }) {
                 </button>
               ))}
             </div>
+            <h3 className="motion-heading">Just enough movement.</h3>
+            <div
+              className="motion-options"
+              role="group"
+              aria-label="Animation preference"
+            >
+              {[
+                ["subtle", "Subtle motion"],
+                ["off", "Still & quiet"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  aria-pressed={profile.motion === value}
+                  onClick={() => update("motion", value)}
+                >
+                  {label}
+                  {profile.motion === value && <Check size={14} />}
+                </button>
+              ))}
+            </div>
             <div className="custom-note">
               <Sparkles size={19} />
               <p>
-                Type, spacing, and contrast are curated to keep your portfolio
-                looking considered in every theme.
+                Gentle entrances and intentional hover details. Your visitor’s
+                reduced-motion setting always takes priority.
               </p>
             </div>
           </>
@@ -566,7 +631,7 @@ function Customize({ profile, onChange, onClose, notify }) {
             onClick={() =>
               download(
                 JSON.stringify(profile, null, 2),
-                "portfolio-settings.json",
+                "published-profile.json",
                 "application/json",
               )
             }
@@ -589,12 +654,12 @@ function Customize({ profile, onChange, onClose, notify }) {
         />
         {resetConfirm && (
           <div className="reset-confirm">
-            <p>Restore the original profile and appearance?</p>
+            <p>Restore the published profile and appearance?</p>
             <button
               onClick={() => {
-                onChange(normalizeProfile(defaultProfile));
+                onChange(normalizeProfile(publishedProfile));
                 setResetConfirm(false);
-                notify("Original portfolio restored.");
+                notify("Published portfolio restored.");
               }}
             >
               Yes, reset
@@ -605,8 +670,9 @@ function Customize({ profile, onChange, onClose, notify }) {
           </div>
         )}
         <p className="local-notice">
-          Local preview only. Export your settings to back them up or publish
-          them as this site’s defaults.
+          Export, replace src/published-profile.json in GitHub, and commit to
+          main to publish. Only repository collaborators can change the live
+          site.
         </p>
       </div>
     </Modal>
@@ -615,10 +681,11 @@ function Customize({ profile, onChange, onClose, notify }) {
 
 function App() {
   const [profile, setProfile] = useState(() => {
+    if (!editorMode) return publishedProfile;
     try {
       return readProfile(window.localStorage);
     } catch {
-      return normalizeProfile(null);
+      return publishedProfile;
     }
   });
   const [modal, setModal] = useState(null);
@@ -630,12 +697,14 @@ function App() {
   const toastTimer = useRef(null);
   const copyTimer = useRef(null);
   const accent = accents[profile.accent];
+  useMotion(profile.motion, profile.layout);
   function notify(message) {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 5000);
   }
   function updateProfile(value) {
+    if (!editorMode) return;
     setProfile(value);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
@@ -647,10 +716,19 @@ function App() {
   }
   useEffect(() => {
     document.documentElement.dataset.theme = profile.theme;
+    document.documentElement.dataset.layout = profile.layout;
+    document.documentElement.dataset.motion = profile.motion;
     document.documentElement.style.setProperty("--accent", accent.color);
     document.documentElement.style.setProperty("--accent-soft", accent.soft);
     document.title = `${profile.name} — ${profile.role}`;
-  }, [profile.theme, profile.name, profile.role, accent]);
+  }, [
+    profile.theme,
+    profile.layout,
+    profile.motion,
+    profile.name,
+    profile.role,
+    accent,
+  ]);
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -722,13 +800,16 @@ function App() {
             ))}
           </nav>
           <div className="header-actions">
-            <button
-              className="customize-button"
-              onClick={() => setModal("customize")}
-            >
-              <SlidersHorizontal size={14} />
-              <span>Customize</span>
-            </button>
+            {editorMode && (
+              <button
+                className="customize-button"
+                aria-label="Customize portfolio"
+                onClick={() => setModal("customize")}
+              >
+                <SlidersHorizontal size={14} />
+                <span>Customize</span>
+              </button>
+            )}
             <button
               className="header-contact"
               onClick={() => setModal("contact")}
@@ -746,6 +827,24 @@ function App() {
           </div>
         </div>
       </header>
+
+      {editorMode && (
+        <aside className="editor-banner" aria-label="Development editor mode">
+          <span>
+            <SlidersHorizontal size={14} />
+            <strong>Editor preview</strong>
+            <span>Your draft stays in this browser.</span>
+          </span>
+          <div>
+            <button onClick={() => setModal("customize")}>
+              Edit design <ArrowUpRight size={13} />
+            </button>
+            <a href={window.location.pathname}>
+              View published version <ArrowUpRight size={13} />
+            </a>
+          </div>
+        </aside>
+      )}
 
       <main id="main-content" tabIndex={-1}>
         <section className="hero section-container" id="home">
@@ -1029,7 +1128,7 @@ function App() {
         </div>
       </footer>
 
-      {modal === "customize" && (
+      {editorMode && modal === "customize" && (
         <Customize
           profile={profile}
           onChange={updateProfile}

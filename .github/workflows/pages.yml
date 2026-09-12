@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - hoplite/kalchedon-4937ef4c
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -42,6 +41,8 @@ jobs:
           fi
       - name: Build portfolio
         run: npm run build
+      - name: Verify public build and asset paths
+        run: npm run verify:build
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
@@ -49,7 +50,7 @@ jobs:
           path: dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
