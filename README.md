@@ -16,7 +16,25 @@ npm test       # Profile, persistence, import safety, and résumé tests
 npm run build # Production output in dist/
 ```
 
-The repository-owned `.hoplite/settings.json` configures installation and preview startup. Deploy `dist/` to a static host such as Netlify, Vercel, or GitHub Pages. For a GitHub Pages project subpath, set Vite’s `base` to the repository path before building.
+The repository-owned `.hoplite/settings.json` configures installation and preview startup. Deploy `dist/` to a static host such as Netlify, Vercel, or GitHub Pages. Set `VITE_BASE_PATH` when building for a subpath; local development defaults to `/`.
+
+## GitHub Pages preview
+
+The checked-in **Portfolio preview on GitHub Pages** workflow tests, builds, and deploys the site. It supports pushes to `main` and the initial preview branch `hoplite/kalchedon-4937ef4c`, plus manual runs. Pull requests run tests and builds without deploying. The initial preview branch and `main` share a single Pages site, not separate per-PR previews.
+
+One-time repository setup:
+
+1. Open **Settings → Pages → Build and deployment** and select **GitHub Actions** as the source.
+2. If the `github-pages` environment restricts deployment branches, allow the initial preview branch as well as `main`, or use only `main` after merging. Do not disable required approvals.
+3. Open **Actions → Portfolio preview on GitHub Pages** and rerun the deployment if it previously failed before Pages was enabled.
+
+The expected URL is **https://dorothyscottz.github.io/profile/** once deployment succeeds. The workflow automatically builds assets under `/profile/`, so CSS, JavaScript, and the favicon work on GitHub Pages. It uses GitHub’s built-in Actions token; no personal access token is needed. GitHub Pages must be available for the repository’s visibility and account plan. After merging, remove the initial preview branch from the workflow’s push triggers if only `main` should publish.
+
+To reproduce the Pages build locally:
+
+```sh
+VITE_BASE_PATH=/profile/ npm run build
+```
 
 ## Features
 
