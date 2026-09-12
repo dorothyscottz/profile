@@ -1,3 +1,5 @@
+import publishedSettings from "./published-profile.json" with { type: "json" };
+
 export const STORAGE_KEY = "farhan-portfolio-v1";
 export const accents = {
   terracotta: { label: "Terracotta", color: "#b64f33", soft: "#f3e6de" },
@@ -19,6 +21,8 @@ export const defaultProfile = {
   status: "Open to meaningful conversations",
   accent: "terracotta",
   theme: "light",
+  layout: "editorial",
+  motion: "subtle",
   projects: [
     {
       id: "enterprise",
@@ -121,6 +125,8 @@ export function normalizeProfile(value) {
     ? input.accent
     : "terracotta";
   profile.theme = input.theme === "dark" ? "dark" : "light";
+  profile.layout = input.layout === "studio" ? "studio" : "editorial";
+  profile.motion = input.motion === "off" ? "off" : "subtle";
   profile.projects = defaultProfile.projects.map((project, i) => {
     const item = input.projects?.[i] ?? {};
     return {
@@ -148,11 +154,18 @@ export function normalizeProfile(value) {
   return profile;
 }
 
-export function readProfile(storage) {
+export const publishedProfile = normalizeProfile(publishedSettings);
+
+export function isEditorRequest(search) {
+  return new URLSearchParams(search).get("edit") === "1";
+}
+
+export function readProfile(storage, published = publishedProfile) {
   try {
-    return normalizeProfile(JSON.parse(storage.getItem(STORAGE_KEY)));
+    const draft = JSON.parse(storage.getItem(STORAGE_KEY));
+    return normalizeProfile({ ...published, ...draft });
   } catch {
-    return normalizeProfile(null);
+    return normalizeProfile(published);
   }
 }
 

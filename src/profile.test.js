@@ -8,6 +8,8 @@ import {
   isValidEmail,
   resumeText,
   STORAGE_KEY,
+  isEditorRequest,
+  publishedProfile,
 } from "./profile.js";
 
 test("defaults contain only profile-based work and no invented contact address", () => {
@@ -101,11 +103,69 @@ test("export and reimport retain supported customizations", () => {
     headline: "Custom\nHeadline",
     accent: "indigo",
     email: "hello@example.com",
+    layout: "studio",
+    motion: "off",
   });
   assert.deepEqual(
     normalizeProfile(JSON.parse(JSON.stringify(profile))),
     profile,
   );
+});
+
+test("layout and motion options are normalized and old exports remain compatible", () => {
+  const studio = normalizeProfile({ layout: "studio", motion: "off" });
+  assert.equal(studio.layout, "studio");
+  assert.equal(studio.motion, "off");
+  for (const input of [
+    {},
+    { layout: "unknown", motion: "infinite" },
+    { layout: {}, motion: null },
+  ]) {
+    const profile = normalizeProfile(input);
+    assert.equal(profile.layout, "editorial");
+    assert.equal(profile.motion, "subtle");
+  }
+});
+
+test("editor requires an explicit edit=1 request", () => {
+  assert.equal(isEditorRequest("?edit=1"), true);
+  assert.equal(isEditorRequest("?other=ok&edit=1"), true);
+  for (const query of ["", "?edit", "?edit=true", "?admin=1", "?edit=0"]) {
+    assert.equal(isEditorRequest(query), false);
+  }
+});
+
+test("editor falls back to published settings, including after draft storage failure", () => {
+  const published = normalizeProfile({
+    name: "Published owner",
+    layout: "studio",
+    motion: "off",
+  });
+  for (const value of [null, "broken-json"]) {
+    assert.deepEqual(
+      readProfile({ getItem: () => value }, published),
+      published,
+    );
+  }
+  assert.deepEqual(
+    readProfile(
+      {
+        getItem() {
+          throw new Error("Blocked");
+        },
+      },
+      published,
+    ),
+    published,
+  );
+  const draft = readProfile(
+    { getItem: () => '{"name":"Draft owner"}' },
+    published,
+  );
+  assert.equal(draft.name, "Draft owner");
+  assert.equal(draft.layout, "studio");
+  assert.equal(draft.motion, "off");
+  assert.deepEqual(normalizeProfile(publishedProfile), publishedProfile);
 });
 
 test("email validation excludes empty or malformed addresses", () => {
