@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "setup": "npm ci",
+    "run": "npm run dev -- --port 3000"
+  },
+  "ports": { "primary": 3000 }
+}
